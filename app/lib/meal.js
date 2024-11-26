@@ -31,7 +31,7 @@ export async function saveMeal(meal) {
 
   stream.write(Buffer.from(bufferImage), (error) => {
     if (error) {
-      throw new Error("savinh image error");
+      throw new Error("saving image error");
     }
   });
 
