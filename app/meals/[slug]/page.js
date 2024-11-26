@@ -1,3 +1,4 @@
+'use client'
 import { getMeal } from "@/app/lib/meal";
 import classes from "./page.module.css";
 import Image from "next/image";
