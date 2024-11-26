@@ -5,7 +5,8 @@ import xss from "xss";
 import fs from "node:fs";
 import { error } from "node:console";
 
-const db = sql("meals.db");
+let path= process.env.DB_PATH||"meals.db"
+const db = sql(path);
 
 export async function getMeals() {
   await new Promise((resolve) => {
