@@ -35,77 +35,50 @@ testConnection();
 // let path= process.env.DB_PATH||"meals.db"
 // const db = sql(path);
 export async function saveMeal(meal) {
-  meal.slug = slugify(meal.title, { lower: true });
-  meal.instructions = xss(meal.instructions);
-
   try {
-    const extension = meal.image.name.split(".").pop();
-    const fileName = `${meal.slug}.${extension}`;
+    // 1. Create slug and sanitize instructions
+    const slug = slugify(meal.title, { lower: true });
+    const sanitizedInstructions = xss(meal.instructions);
 
-    // Save locally
-    const localImagePath = path.join(process.cwd(), 'public', 'images', fileName);
-    const bufferImage = await meal.image.arrayBuffer();
-    
-    // Ensure directory exists
-    const directory = path.join(process.cwd(), 'public', 'images');
-    if (!fs.existsSync(directory)) {
-      fs.mkdirSync(directory, { recursive: true });
-    }
+    // 2. Upload image to Cloudinary only
+    const imageBuffer = await meal.image.arrayBuffer();
+    const base64Image = Buffer.from(imageBuffer).toString('base64');
+    const dataURI = `data:${meal.image.type};base64,${base64Image}`;
 
-    // Write to local storage
-    fs.writeFileSync(localImagePath, Buffer.from(bufferImage));
-
-    // Upload to Cloudinary
-    const cloudinaryResponse = await new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: 'meals',
-          public_id: meal.slug,
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-
-      // Convert ArrayBuffer to Buffer and pipe to Cloudinary
-      const buffer = Buffer.from(bufferImage);
-      const stream = require('stream');
-      const bufferStream = new stream.PassThrough();
-      bufferStream.end(buffer);
-      bufferStream.pipe(uploadStream);
+    const cloudinaryResponse = await cloudinary.uploader.upload(dataURI, {
+      folder: 'meals',
+      public_id: slug,
     });
 
-    // Save to database with both URLs
+    // 3. Save to database (using Cloudinary URL only)
     const result = await pool.query(
-      `INSERT INTO meals(
-        title, 
-        summary, 
-        instructions, 
-        creator, 
-        creator_email, 
-        image, 
-        cloud_image,
-        slug
-      )
-      VALUES($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO meals (
+        slug,
+        title,
+        summary,
+        instructions,
+        creator,
+        creator_email,
+        image,
+        cloud_image
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`,
       [
+        slug,
         meal.title,
         meal.summary,
-        meal.instructions,
+        sanitizedInstructions,
         meal.creator,
         meal.creator_email,
-        `/images/${fileName}`,
-        cloudinaryResponse.secure_url,
-        meal.slug
+        cloudinaryResponse.secure_url, // Use Cloudinary URL for both fields
+        cloudinaryResponse.secure_url
       ]
     );
 
     return result.rows[0];
   } catch (error) {
-    console.error('Error saving meal:', error);
-    throw new Error('Failed to save meal');
+    console.error('Error in saveMeal:', error);
+    throw new Error(`Failed to save meal: ${error.message}`);
   }
 }
 
