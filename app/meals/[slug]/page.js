@@ -1,32 +1,48 @@
-
 import { getMeal } from "@/app/lib/meal";
 import classes from "./page.module.css";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 
-export async function generateMetadata({params}){
-  const meal = getMeal(params.slug);
+export async function generateMetadata({ params }) {
+  const meal = await getMeal(params.slug);
+  
   if (!meal) {
-    notFound();
+    return {
+      title: 'Meal not found',
+      description: 'This meal does not exist.'
+    };
   }
-  return{
+
+  return {
     title: meal.title,
-    description: meal.summary
-  }
+    description: meal.summary,
+    openGraph: {
+      title: meal.title,
+      description: meal.summary,
+      images: [meal.cloud_image || meal.image]
+    },
+  };
 }
-export default function MealDetails({ params }) {
-  const meal = getMeal(params.slug);
 
+export default async function MealDetails({ params }) {
+  const meal = await getMeal(params.slug);
 
   if (!meal) {
     notFound();
   }
-  meal.instructions = meal.instructions.replace(/\n/g, "<br/>");
+
+  const formattedInstructions = meal.instructions ? meal.instructions.replace(/\n/g, "<br/>") : '';
+
   return (
     <>
       <header className={classes.header}>
         <div className={classes.image}>
-          <Image src={meal.image} fill />
+          <Image 
+            src={meal.cloud_image || meal.image} 
+            alt={meal.title} 
+            fill 
+            priority
+          />
         </div>
         <div className={classes.headerText}>
           <h1>{meal.title}</h1>
@@ -40,7 +56,7 @@ export default function MealDetails({ params }) {
         <p
           className={classes.instructions}
           dangerouslySetInnerHTML={{
-            __html: meal.instructions,
+            __html: formattedInstructions
           }}
         ></p>
       </main>
