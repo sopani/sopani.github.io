@@ -11,6 +11,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -32,21 +33,28 @@ testConnection();
 
 export async function saveMeal(meal) {
   try {
-    // 1. Create slug and sanitize instructions
+    // 1. Create slug and sanitize
     const slug = slugify(meal.title, { lower: true });
     const sanitizedInstructions = xss(meal.instructions);
 
-    // 2. Upload image to Cloudinary only
-    const imageBuffer = await meal.image.arrayBuffer();
-    const base64Image = Buffer.from(imageBuffer).toString('base64');
-    const dataURI = `data:${meal.image.type};base64,${base64Image}`;
+    // 2. Upload image directly to Cloudinary
+    let cloudinaryResponse;
+    try {
+      const imageBuffer = await meal.image.arrayBuffer();
+      const base64Image = Buffer.from(imageBuffer).toString('base64');
+      const dataURI = `data:${meal.image.type};base64,${base64Image}`;
+      
+      cloudinaryResponse = await cloudinary.uploader.upload(dataURI, {
+        folder: 'meals',
+        public_id: slug,
+        resource_type: 'auto'
+      });
+    } catch (uploadError) {
+      console.error('Cloudinary upload failed:', uploadError);
+      throw new Error('Image upload failed');
+    }
 
-    const cloudinaryResponse = await cloudinary.uploader.upload(dataURI, {
-      folder: 'meals',
-      public_id: slug,
-    });
-
-    // 3. Save to database (using Cloudinary URL only)
+    // 3. Save to database using Cloudinary URL only
     const result = await pool.query(
       `INSERT INTO meals (
         slug,
@@ -57,7 +65,7 @@ export async function saveMeal(meal) {
         creator_email,
         image,
         cloud_image
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
       RETURNING *`,
       [
         slug,
@@ -66,7 +74,6 @@ export async function saveMeal(meal) {
         sanitizedInstructions,
         meal.creator,
         meal.creator_email,
-        cloudinaryResponse.secure_url, // Use Cloudinary URL for both fields
         cloudinaryResponse.secure_url
       ]
     );
