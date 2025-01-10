@@ -1,12 +1,9 @@
-// import sql from "better-sqlite3";
 import { Pool } from 'pg';
 import { v2 as cloudinary } from 'cloudinary';
 import slugify from "slugify";
 import { resolve } from "styled-jsx/css";
 import xss from "xss";
-import fs from "node:fs";
 import { error } from "node:console";
-import path from 'path'; 
 
 cloudinary.config({ 
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
@@ -32,8 +29,7 @@ async function testConnection() {
 }
 
 testConnection();
-// let path= process.env.DB_PATH||"meals.db"
-// const db = sql(path);
+
 export async function saveMeal(meal) {
   try {
     // 1. Create slug and sanitize instructions
