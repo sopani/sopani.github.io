@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { saveMeal } from "./meal";
 import { revalidatePath } from "next/cache";
 
@@ -15,19 +14,22 @@ export async function shareMeal(prevState, formData) {
       image: formData.get('image')
     };
 
-    // Save the meal and get the returned data including the slug
     const savedMeal = await saveMeal(meal);
     
-    // Revalidate both the meals list and the new meal page
+    // Revalidate paths
     revalidatePath('/meals');
     revalidatePath(`/meals/${savedMeal.slug}`);
 
-    // Redirect to the newly created meal's page
-    redirect(`/meals/${savedMeal.slug}`);
-    
+    // Return the path instead of using redirect
+    return {
+      status: 'success',
+      redirectTo: `/meals/${savedMeal.slug}`
+    };
+
   } catch (error) {
     console.error('Error in shareMeal:', error);
     return {
+      status: 'error',
       message: error.message || 'Failed to share meal.'
     };
   }

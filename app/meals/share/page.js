@@ -1,12 +1,21 @@
-'use client';
-import { useFormState } from 'react-dom';
+"use client";
+import { useFormState } from "react-dom";
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import ImagePicker from "@/app/component/meals/image-picker";
 import classes from "./page.module.css";
 import { shareMeal } from "@/app/lib/actions";
 import MealsFormSubmit from "@/app/component/meals/meals-form-submit";
 
 export default function ShareMealPage() {
-  const [state, formAction] = useFormState(shareMeal, { message: null });
+  const router = useRouter();
+  const [state, formAction] = useFormState(shareMeal, { status: null });
+
+  useEffect(() => {
+    if (state?.status === 'success' && state?.redirectTo) {
+      router.push(state.redirectTo);
+    }
+  }, [state, router]);
 
   return (
     <>
